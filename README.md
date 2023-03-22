@@ -1,76 +1,55 @@
-# `c-build`
+# `cbuild`
 
-## 1. Why I build this?
+### What is it and what it can offer to you
 
-Inspired by [tsoding's nobuild](https://github.com/tsoding/nobuild) and I want
-to build my customized one.
+Inspired by [tsoding's nobuild](https://github.com/tsoding/nobuild) and
+has been improved.
 
-</br>
+Easy to understand and use, with no extra configuration syntax (or
+language) you need to learn, only C, the one you're super familiar with:)
 
+Here is what `cbuild` can offer to you:
 
-## 2. What `c-build` can offer
+- Only `C` compiler needed for building your C project.
 
-#### 2.1 Only `C` compiler needed for building your C project.
+    You don't need to install the extra tools like `make`, `cmake` or anything
+    you named it. **Only C compiler needed**.
 
-Like `nobuild` mentioned:
+    If you love C, then just write your own building process by using your
+    favorite programming language, it's kind of fun and cool:)
 
-You should not need anything but a C compiler to build a C project. No
-`make`, no `cmake`, no `shell`, no `cmd`, no `PowerShell` etc. **Only C
-compiler**.
+- Improved color logging.
 
-If you love C, then use C to write your own building process, it's kind of
-fun and cool:)
+- Support user provided env var to override the default settings.
 
-</br>
+- Cover different function naming habits.
 
-#### 2.2. Differences with `nobuild`
+    So the following function calls are the same, just pick the one you
+    preferred:
 
-- Improved color logging compared to `nobuild`
-
-</br>
-
-- Support user provided env var to override the default settings
-
-</br>
-
-- `CMD` support `char *` option, so you're able to do something like this:
-
-    ```c
-    char cmd[1024] = "";
-    // ... Make up your command string in the way you like
-    CMD(cmd);
-    ```
-
-    rather than like this:
-
-    ```c
-    #define C_COMPILER "CC"
-    #define C_COMPILER "clang"
-    #define C_FLAGS "-pedantic-errors", "-Wall", "-Wextra", "-Werror", "-std=c11"
-    #define C_FLAGS_SANITIZER "-fsanitize=address", "-O1", "-fno-omit-frame-pointer"
-
-    // `pkg-config --libs --cflags raylib`
-    #define C_FLAGS_RAYLIB_COMPILING "-I/usr/local/include", "-D_THREAD_SAFE", "-pthread"
-    #define C_FLAGS_RAYLIB_LINKING "-D_THREAD_SAFE", "-pthread", "-L/usr/local/lib", "-lraylib"
-
-    CMD(C_COMPILER, C_FLAGS, C_FLAGS_SANITIZER, C_FLAGS_RAYLIB_COMPILING, EXTRA_C_FLAGS, "-o", obj_file, "-c", source_file);
-    ```
+    - `CBuild_exec_command`
+    - `CBuildExecCommand`
+    - `CB_exec_command`
+    - `CBExecCommand`
 
     </br>
 
-- Only for `Linux` or `BSD` family, sorry, not for `windows`:)
+- Single `cbuild.h` to cover all you need, nothing else.
 
+### Limitation
 
-    </br>
+Only work for `Linux` or `BSD` family at this moment, tested on `Linux/MacOS/FreeBSD`.
 
-### 3. Usage by examples
+</br>
 
-#### 3.1 Basic
+### Usage by examples
 
-- Create `c-build.c` and include `c-build.h` and write your own build process
+#### Basic
+
+- Create `cbuild.c` and include `cbuild.h` and write your own build process
 
     ```c
-    #include "c-build.h"
+    #include "cbuild.h"
 
     char cmd[] = "cc -pedantic-errors -Wall -Wextra -Werror -std=c11 -o main src/main.c";
     CMD(cmd);
@@ -82,43 +61,49 @@ fun and cool:)
 
     </br>
 
-- Compile `c-build.c` and then use it to compile the project:
+- Compile `cbuild.c` and then use it to compile your project:
 
     ```bash
-    ${C_COMPILER} -o c-build c-build.c && \
-        ENABLE_SANITIZER=true \
-        C_COMPILER=${C_COMPILER} \
-        BUILD_FOLDER=${BUILD_FOLDER} \
-        ./c-build && \
-        ${BUILD_FOLDER}/${EXECUTABLE}
+    cc -o cbuild cbuild.c && ./cbuild
     ```
 
     </br>
 
 
-#### 3.2 Support configurable env var
+#### Support configurable env var
 
-- Create `c-build.c` and include `c-build.h` and write your own build process
+- Create `cbuild.c` and include `cbuild.h` and write your own build process
 
     See the `examples/env.c`
 
+    Here is the default env values if you don't provided:
+
+    | Env var | Default value |
+    | ------- | ------------- |
+    | C_COMPILER | `cc` |
+    | C_FLAGS | `-pedantic-errors -Wall -Wextra -Werror -std=c11` |
+    | EXTRA_C_FLAGS | |
+    | ENABLE_SANITIZER | `false`<br><br>When `true`, the following settings applied:<br>`-fsanitize=address -O1 -fno-omit-frame-pointer` |
+    | RELEASE_BUILD | `false` and `-g` applied<br><br>When `true`, the following settings applied:<br>`-O3 -DNDEBUG`|
+    | EXECUTABLE | `main` |
+    | BUILD_FOLDER | `build` |
+
     </br>
 
-- Compile `c-build.c` and then use it to compile the project and run it:
+- Compile `cbuild.c` and then use it to compile your project and run it:
 
     ```bash
     #!/bin/sh
 
     C_COMPILER=$(which clang)
-    # C_COMPILER=$(which cc)
     EXECUTABLE="my-program"
     BUILD_FOLDER="temp_build"
 
-    ${C_COMPILER} -o c-build c-build.c && \
+    ${C_COMPILER} -o cbuild cbuild.c && \
         ENABLE_SANITIZER=true \
         C_COMPILER=${C_COMPILER} \
         BUILD_FOLDER=${BUILD_FOLDER} \
-        ./c-build && \
+        ./cbuild && \
         ${BUILD_FOLDER}/${EXECUTABLE}
     ```
 
