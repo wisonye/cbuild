@@ -4,7 +4,7 @@
 C_COMPILER=$(which cc)
 EXECUTABLE="my_program"
 BUILD_FOLDER="temp_build"
-NO_CACHE=true
+NO_CACHE=false
 RELEASE_BUILD=true
 
 #

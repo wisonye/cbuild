@@ -1,6 +1,7 @@
 #ifndef __C_BUILD_H__
 #define __C_BUILD_H__
 
+#include <dirent.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -8,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/errno.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 ///
@@ -20,6 +23,21 @@ void CB_panic(const char *prefix, const char *fmt, ...);
 
 ///
 /// Folder related
+///
+/// `CB_delete_folder` and `CB_create_folder` have the following limitations:
+///
+/// Only work for single layer folder like:
+///
+/// `build`
+/// `./build`
+/// `../build`
+/// `/absolute_path_tobuild`
+///
+/// Does NOT support the following:
+///
+/// `~/xxx`
+/// `xxx/yyy`
+/// `xxx/yyy/zzz`
 ///
 bool CB_folder_exists(const char *folder);
 void CB_delete_folder(const char *folder);
@@ -150,10 +168,119 @@ void CB_panic(const char *prefix, const char *fmt, ...) {
 ///
 /// Folder related
 ///
-bool CB_folder_exists(const char *folder) { return false; }
-void CB_delete_folder(const char *folder) {}
-void CB_create_folder(const char *folder) {}
+/// `CB_delete_folder` and `CB_create_folder` have the following limitations:
+///
+/// Only work for single layer folder like:
+///
+/// `build`
+/// `./build`
+/// `../build`
+/// `/absolute_path_tobuild`
+///
+/// Does NOT support the following:
+///
+/// `~/xxx`
+/// `xxx/yyy`
+/// `xxx/yyy/zzz`
+///
+bool is_folder(const char *path) {
+    struct stat statbuf = {0};
+    if (stat(path, &statbuf) < 0) {
+        // `ENOENT` 2 /* No such file or directory */
+        if (errno == ENOENT) {
+            return false;
+        }
 
+        CB_panic("path_is_folder",
+                 "Failed to obtain information about the path '%s': %s", path,
+                 strerror(errno));
+    }
+
+    return (bool)S_ISDIR(statbuf.st_mode);
+}
+
+bool CB_folder_exists(const char *folder) {
+    struct stat statbuf = {0};
+    if (stat(folder, &statbuf) < 0) {
+        // `ENOENT` 2 /* No such file or directory */
+        if (errno == ENOENT) {
+            CB_error("CB_folder_exists", "folder not exists: %s", folder);
+            return false;
+        } else {
+            CB_panic("CB_folder_exists",
+                     "Failed to obtain information about the path '%s': %s",
+                     folder, strerror(errno));
+        }
+    }
+    CB_info("CB_folder_exists", "folder exists: %s", folder);
+    return true;
+}
+
+void CB_delete_folder(const char *path) {
+    // That's a folder
+    if (is_folder(path)) {
+        struct dirent *dir_info = NULL;
+        DIR *dir = opendir(path);
+        if (dir == NULL) {
+            CB_panic("CB_delete_folder", "Failed to open folder '%s': %s", path,
+                     strerror(errno));
+        }
+
+        errno = 0;
+        while ((dir_info = readdir(dir))) {
+            const char *file = dir_info->d_name;
+            if (strcmp(file, ".") != 0 && strcmp(file, "..") != 0) {
+                char temp_file[255] = {0};
+                snprintf(temp_file, sizeof(temp_file), "%s/%s", path, file);
+                CB_delete_folder(temp_file);
+            }
+        }
+
+        if (errno > 0) {
+            CB_panic("CB_delete_folder", "Failed to read folder '%s': %s", path,
+                     strerror(errno));
+        }
+
+        closedir(dir);
+
+        if (rmdir(path) < 0) {
+            // `ENOENT` 2 /* No such file or directory */
+            if (errno == ENOENT) {
+                CB_info("CB_delete_folder", "folder doesn't exists: %s", path);
+            } else {
+                CB_panic("CB_delete_exists", "Failed to delete folder '%s': %s",
+                         path, strerror(errno));
+            }
+        }
+        CB_info("CB_delete_folder", "folder deleted successfully: %s", path);
+    }
+    // That's a file
+    else {
+        if (unlink(path) < 0) {
+            if (errno == ENOENT) {
+                CB_info("CB_delete_folder", "file doesn't exists: %s", path);
+            } else {
+                CB_panic("CB_delete_exists", "Failed to delete file '%s': %s",
+                         path, strerror(errno));
+            }
+        }
+        CB_info("CB_delete_folder", "file deleted successfully: %s", path);
+    }
+}
+
+void CB_create_folder(const char *folder) {
+    if (mkdir(folder, 0755) < 0) {
+        if (errno == EEXIST) {
+            CB_info("CB_create_folder", "folder already exists: %s", folder);
+            return;
+        } else {
+            CB_panic("CB_create_exists", "Failed to create folder %s: %s",
+                     folder, strerror(errno));
+        }
+    }
+
+    CB_info("CB_create_folder", "folder created successfully: %s", folder);
+}
 ///
 /// Command related
 ///
@@ -228,7 +355,7 @@ static char NO_CACHE = false;
 
 void CB_setup_build_folder(void) {
     const char *build_folder = getenv("BUILD_FOLDER");
-    snprintf(BUILD_FOLDER, sizeof(BUILD_FOLDER), "%s/",
+    snprintf(BUILD_FOLDER, sizeof(BUILD_FOLDER), "%s",
              build_folder != NULL ? build_folder : "build");
 
     const char *no_cache = getenv("NO_CACHE");
@@ -240,15 +367,14 @@ void CB_setup_build_folder(void) {
     // Create folder it not exists
     if (!CB_folder_exists(BUILD_FOLDER)) {
         CB_create_folder(BUILD_FOLDER);
-        CB_info("BUILD_FOLDER", "Created build folder: %s",
-                BUILD_FOLDER);
+        CB_info("BUILD_FOLDER", "Created build folder: %s", BUILD_FOLDER);
     }
     // Clean build
     else if (NO_CACHE) {
         CB_delete_folder(BUILD_FOLDER);
         CB_create_folder(BUILD_FOLDER);
-        CB_info("BUILD_FOLDER",
-                "NO_CACHE = true, re-created build folder: %s", BUILD_FOLDER);
+        CB_info("BUILD_FOLDER", "NO_CACHE = true, re-created build folder: %s",
+                BUILD_FOLDER);
     }
 }
 
@@ -285,8 +411,7 @@ void CB_setup_compiler(void) {
 
     CB_info("COMPILER", "C_COMPILER: %s", C_COMPILER);
     CB_info("COMPILER", "C_FLAGS: %s", c_flags);
-    CB_info("COMPILER", "RELEASE_BUILD: %s",
-            RELEASE_BUILD ? "Yes" : "No");
+    CB_info("COMPILER", "RELEASE_BUILD: %s", RELEASE_BUILD ? "Yes" : "No");
 
     already_setup_c_compiler = true;
 }
