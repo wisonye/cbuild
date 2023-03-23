@@ -16,7 +16,7 @@ ${C_COMPILER} -o cbuild -g cbuild.c \
     C_COMPILER=${C_COMPILER} \
     BUILD_FOLDER=${BUILD_FOLDER} \
     NO_CACHE=${NO_CACHE} \
-    #RELEASE_BUILD=${RELEASE_BUILD} \
+    RELEASE_BUILD=${RELEASE_BUILD} \
     ./cbuild \
     && \
     ${BUILD_FOLDER}/${EXECUTABLE}

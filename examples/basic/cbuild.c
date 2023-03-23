@@ -5,7 +5,7 @@
 ///
 ///
 int main(int argc, char **argv) {
-    CB_setup_builder_folder();
+    CB_setup_build_folder();
     CB_setup_compiler();
 
     const char *source_files[] = {

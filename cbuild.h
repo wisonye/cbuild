@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,10 +13,10 @@
 ///
 /// Log related
 ///
-void CB_info(const char *func_name, const char *fmt, ...);
-void CB_warn(const char *func_name, const char *fmt, ...);
-void CB_error(const char *func_name, const char *fmt, ...);
-void CB_panic(const char *func_name, const char *fmt, ...);
+void CB_info(const char *prefix, const char *fmt, ...);
+void CB_warn(const char *prefix, const char *fmt, ...);
+void CB_error(const char *prefix, const char *fmt, ...);
+void CB_panic(const char *prefix, const char *fmt, ...);
 
 ///
 /// Folder related
@@ -110,37 +111,38 @@ void CB_build_executable(const char *output_file);
 #define LOG_COLOR_PURPLE "\033[1;35m"
 #define LOG_COLOR_RESET "\033[0m"
 
-void CB_log(FILE *fd, const char *color, const char *func_name, const char *fmt,
+void CB_log(FILE *fd, const char *color, const char *prefix, const char *fmt,
             va_list args) {
-    fprintf(fd, ">>> %s[ %s ] %s- ", color, func_name, LOG_COLOR_RESET);
+    // fprintf(fd, ">>> %s[ %s ] %s- ", color, prefix, LOG_COLOR_RESET);
+    fprintf(fd, "%s[ %s ] %s- ", color, prefix, LOG_COLOR_RESET);
     vfprintf(fd, fmt, args);
     fprintf(fd, "\n");
 }
 
-void CB_info(const char *func_name, const char *fmt, ...) {
+void CB_info(const char *prefix, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    CB_log(stdout, LOG_COLOR_GREEN, func_name, fmt, args);
+    CB_log(stdout, LOG_COLOR_GREEN, prefix, fmt, args);
     va_end(args);
 }
-void CB_warn(const char *func_name, const char *fmt, ...) {
+void CB_warn(const char *prefix, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    CB_log(stdout, LOG_COLOR_YELLOW, func_name, fmt, args);
-    va_end(args);
-}
-
-void CB_error(const char *func_name, const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    CB_log(stdout, LOG_COLOR_RED, func_name, fmt, args);
+    CB_log(stdout, LOG_COLOR_YELLOW, prefix, fmt, args);
     va_end(args);
 }
 
-void CB_panic(const char *func_name, const char *fmt, ...) {
+void CB_error(const char *prefix, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    CB_log(stdout, LOG_COLOR_PURPLE, func_name, fmt, args);
+    CB_log(stdout, LOG_COLOR_RED, prefix, fmt, args);
+    va_end(args);
+}
+
+void CB_panic(const char *prefix, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    CB_log(stdout, LOG_COLOR_PURPLE, prefix, fmt, args);
     va_end(args);
     exit(1);
 }
@@ -169,7 +171,7 @@ bool CB_exec(const char *cmd, const char *args[]) {
         next_str = (char *)args[index];
     }
 
-    CB_info("CB_exec", "%s", cmd_info);
+    CB_info("EXEC", "%s", cmd_info);
 
     if (execvp(cmd, (char *const *)args) < 0) {
         CB_panic("CB_exec", "Fail to run child process: '%s' with error: %s",
@@ -197,7 +199,26 @@ bool CB_exec(const char *cmd, const char *args[]) {
 ///
 /// Print `...` (',' separated list) into `out_buffer`
 ///
-void join_args(char *out_buffer, size_t buffer_size, ...) {}
+void join_args(char *out_buffer, size_t buffer_size, ...) {
+    va_list args;
+    va_start(args, buffer_size);
+
+    size_t index = 0;
+    int bytes_written = 0;
+    char *next_flag = (char *)va_arg(args, char *);
+    while (next_flag != NULL) {
+        bytes_written +=
+            snprintf(out_buffer + bytes_written, buffer_size - bytes_written,
+                     "%s ", next_flag);
+        // printf("\n----bytes_written: %lu, out_buffer: %s", bytes_written,
+        //        out_buffer);
+
+        index++;
+        next_flag = (char *)va_arg(args, char *);
+    }
+    out_buffer[bytes_written] = '\0';
+    va_end(args);
+}
 
 ///
 ///
@@ -205,7 +226,7 @@ void join_args(char *out_buffer, size_t buffer_size, ...) {}
 static char BUILD_FOLDER[255] = {0};
 static char NO_CACHE = false;
 
-void CB_setup_builder_folder(void) {
+void CB_setup_build_folder(void) {
     const char *build_folder = getenv("BUILD_FOLDER");
     snprintf(BUILD_FOLDER, sizeof(BUILD_FOLDER), "%s/",
              build_folder != NULL ? build_folder : "build");
@@ -219,14 +240,14 @@ void CB_setup_builder_folder(void) {
     // Create folder it not exists
     if (!CB_folder_exists(BUILD_FOLDER)) {
         CB_create_folder(BUILD_FOLDER);
-        CB_info("CB_setup_builder_folder", "Created build folder: %s",
+        CB_info("BUILD_FOLDER", "Created build folder: %s",
                 BUILD_FOLDER);
     }
     // Clean build
     else if (NO_CACHE) {
         CB_delete_folder(BUILD_FOLDER);
         CB_create_folder(BUILD_FOLDER);
-        CB_info("CB_setup_builder_folder",
+        CB_info("BUILD_FOLDER",
                 "NO_CACHE = true, re-created build folder: %s", BUILD_FOLDER);
     }
 }
@@ -254,15 +275,17 @@ void CB_setup_compiler(void) {
 
     char c_flags[255] = {0};
     if (RELEASE_BUILD) {
-        join_args(c_flags, sizeof(c_flags, DEFAULT_C_FLAGS_RELEASE, NULL));
+        join_args(c_flags, sizeof(c_flags), DEFAULT_C_FLAGS_RELEASE, NULL);
     } else {
-        join_args(c_flags, sizeof(c_flags, DEFAULT_C_FLAGS, NULL));
+        join_args(c_flags, sizeof(c_flags), DEFAULT_C_FLAGS, NULL);
     }
     snprintf(c_flags, sizeof(c_flags), "%s", c_flags);
 
-    CB_info("CB_setup_compiler", "C_COMPILER: %s", C_COMPILER);
-    CB_info("CB_setup_compiler", "C_FLAGS: %s", c_flags);
-    CB_info("CB_setup_compiler", "RELEASE_BUILD: %s",
+    // print_memory_block("byte[]", sizeof(c_flags), c_flags);
+
+    CB_info("COMPILER", "C_COMPILER: %s", C_COMPILER);
+    CB_info("COMPILER", "C_FLAGS: %s", c_flags);
+    CB_info("COMPILER", "RELEASE_BUILD: %s",
             RELEASE_BUILD ? "Yes" : "No");
 
     already_setup_c_compiler = true;
@@ -274,7 +297,7 @@ void CB_setup_compiler(void) {
 void CB_compile_all(const char *source_file, ...) {
     va_list args;
     va_start(args, source_file);
-    CB_info("CB_compile_all", "Compiling: %s", source_file);
+    // CB_info("COMPILE_ALL", "Compiling: %s", source_file);
 
     if (RELEASE_BUILD) {
         const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS_RELEASE, "-c",
@@ -288,7 +311,7 @@ void CB_compile_all(const char *source_file, ...) {
 
     char *next_source_file = va_arg(args, char *);
     while (next_source_file != NULL) {
-        CB_info("CB_compile_all", "Compiling: %s", next_source_file);
+        // CB_info("COMPILE_ALL", "Compiling: %s", next_source_file);
         next_source_file = va_arg(args, char *);
     }
     va_end(args);
