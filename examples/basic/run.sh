@@ -4,7 +4,7 @@
 C_COMPILER=$(which cc)
 EXECUTABLE="my_program"
 BUILD_FOLDER="temp_build"
-NO_CACHE=false
+NO_CACHE=true
 RELEASE_BUILD=true
 
 #
@@ -17,6 +17,4 @@ ${C_COMPILER} -o cbuild -g cbuild.c \
     BUILD_FOLDER=${BUILD_FOLDER} \
     NO_CACHE=${NO_CACHE} \
     RELEASE_BUILD=${RELEASE_BUILD} \
-    ./cbuild \
-    && \
-    ${BUILD_FOLDER}/${EXECUTABLE}
+    ./cbuild

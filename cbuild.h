@@ -417,26 +417,64 @@ void CB_setup_compiler(void) {
 }
 
 ///
+/// Extract the `xxxx.c` part and add `.o` at the end as the obj filename:
+///
+/// xxxx.c -> ${BUILD_FOLDER}/xxxx.c.o
+/// src/xxxx.c -> ${BUILD_FOLDER}/xxxx.c.o
+/// src/sub_folder/xxxx.c -> ${BUILD_FOLDER}/xxxx.c.o
+///
+void get_obj_filename_from_source_file(const char *source_file,
+                                       char *out_buffer, size_t buffer_size) {
+    size_t filename_len = strlen(source_file);
+    char temp_filename[50] = {0};
+    size_t path_seq_start_index = 0;
+
+    for (size_t i = filename_len - 1; i >= 0; i--) {
+        if (source_file[i] == '/') {
+            path_seq_start_index = i + 1;
+            break;
+        }
+    }
+
+    memcpy(temp_filename, &source_file[path_seq_start_index],
+           filename_len - path_seq_start_index);
+
+    snprintf(out_buffer, buffer_size, "%s/%s.o", BUILD_FOLDER, temp_filename);
+}
+
+///
+/// Compile the given source file and generate `.o` objfile to `BUILD_FOLDER`
+///
+void compile_c_file(const char *source_file) {
+    char obj_file[256] = {0};
+    get_obj_filename_from_source_file(source_file, (char *)&obj_file,
+                                      sizeof(obj_file));
+    if (RELEASE_BUILD) {
+        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS_RELEASE,
+                                "-o",       obj_file,
+                                "-c",       source_file,
+                                NULL};
+        CB_exec(cc_cmd[0], cc_cmd);
+    } else {
+        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS, "-o", obj_file,
+                                "-c",       source_file,     NULL};
+        CB_exec(cc_cmd[0], cc_cmd);
+    }
+}
+
+///
 ///
 ///
 void CB_compile_all(const char *source_file, ...) {
     va_list args;
     va_start(args, source_file);
-    // CB_info("COMPILE_ALL", "Compiling: %s", source_file);
-
-    if (RELEASE_BUILD) {
-        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS_RELEASE, "-c",
-                                source_file, NULL};
-        CB_exec(cc_cmd[0], cc_cmd);
-    } else {
-        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS, "-c", source_file,
-                                NULL};
-        CB_exec(cc_cmd[0], cc_cmd);
-    }
+    CB_info("COMPILE_ALL", "Compiling: %s", source_file);
+    compile_c_file(source_file);
 
     char *next_source_file = va_arg(args, char *);
     while (next_source_file != NULL) {
-        // CB_info("COMPILE_ALL", "Compiling: %s", next_source_file);
+        CB_info("COMPILE_ALL", "Compiling: %s", next_source_file);
+        compile_c_file(next_source_file);
         next_source_file = va_arg(args, char *);
     }
     va_end(args);
