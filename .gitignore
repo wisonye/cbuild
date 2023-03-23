@@ -1,3 +1,6 @@
 build
 .cache
 clangd.core
+*/**/*.o
+*/**/cbuild
+*/**/cbuild.dSYM
