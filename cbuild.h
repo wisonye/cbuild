@@ -16,7 +16,7 @@
 ///
 /// Log related
 ///
-#define ENABLE_DEBUG_LOG
+// #define ENABLE_DEBUG_LOG
 void CB_debug(const char *prefix, const char *fmt, ...);
 void CB_info(const char *prefix, const char *fmt, ...);
 void CB_warn(const char *prefix, const char *fmt, ...);
@@ -704,6 +704,8 @@ void CB_compile_and_build_executable(const char *executable,
         free(obj_file_list[index]);
     }
     free(obj_file_list);
+
+    CB_info("BUILD_EXECUTABLE", "Build successfully, generated executable: %s", executable_filename);
 }
 
 #endif
