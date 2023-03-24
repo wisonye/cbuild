@@ -21,5 +21,19 @@ int main(int argc, char **argv) {
     //                         NULL};
     // CB_exec(ls_cmd[0], ls_cmd);
 
-    // CB_exec2("ls", "-lht", "/Users/wison", NULL);
+    // const char *compile_cmd[] = {"/usr/bin/cc",
+    //                              "-o",
+    //                              "temp_build/my-game ",
+    //                              "-D_THREAD_SAFE",
+    //                              "-pthread",
+    //                              "-L/usr/local/lib",
+    //                              "-lraylib",
+    //                              "temp_build/main.c.o",
+    //                              "temp_build/game.c.o",
+    //                              "temp_build/table.c.o",
+    //                              "temp_build/scoreboard.c.o",
+    //                              "temp_build/player.c.o",
+    //                              "temp_build/ball.c.o",
+    //                              NULL};
+    // CB_exec(compile_cmd[0], compile_cmd);
 }

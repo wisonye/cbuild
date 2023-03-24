@@ -4,8 +4,8 @@
 C_COMPILER=$(which cc)
 EXECUTABLE="my_program"
 BUILD_FOLDER="temp_build"
-NO_CACHE=true
-RELEASE_BUILD=true
+NO_CACHE=false
+RELEASE_BUILD=false
 
 #
 # Compile `cbuild.c` and then use it to compile the project
