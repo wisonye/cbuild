@@ -293,6 +293,7 @@ void CB_create_folder(const char *folder) {
 
     CB_debug("CB_create_folder", "folder created successfully: %s", folder);
 }
+
 ///
 /// Command related
 ///
@@ -312,12 +313,64 @@ bool CB_exec(const char *cmd, const char *args[]) {
 
     CB_info("EXEC", "%s", cmd_info);
 
-    if (execvp(cmd, (char *const *)args) < 0) {
-        CB_panic("CB_exec", "Fail to run child process: '%s' with error: %s",
-                 cmd, strerror(errno));
-        return false;
+    //
+    // `execvp` replaces the current process image with a new process image,
+    // it means the current process is gone, that's why we need to `fork` a
+    // new child process and run `execvp` inside there and wait the child
+    // process to finish!!!
+    //
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        CB_panic("EXEC", "Failed to fork child command proceww: '%s': %s",
+                 cmd_info, strerror(errno));
     }
-    // execvp(const char *file, char *const argv[]);
+
+    //
+    // I'm child process
+    //
+    if (pid == 0) {
+        // execvp(const char *file, char *const argv[]);
+        if (execvp(cmd, (char *const *)args) < 0) {
+            CB_panic("EXEC",
+                     "Fail to run child process ('%s') with error: %s",
+                     cmd_info, strerror(errno));
+        }
+    }
+    //
+    // I'm parent process, wait for the child process to finish
+    //
+    else {
+        CB_debug("EXEC", "Waiting for child process (pid: %d): %s", pid,
+                 cmd_info);
+        for (;;) {
+            int wstatus = 0;
+            if (waitpid(pid, &wstatus, 0) < 0) {
+                CB_panic("EXEC", "Failed to wait for command (pid %d): %s", pid,
+                         strerror(errno));
+            }
+
+            if (WIFEXITED(wstatus)) {
+                int exit_status = WEXITSTATUS(wstatus);
+                if (exit_status != 0) {
+                    CB_panic("EXEC",
+                             "command process ('%s') exited with exit code %d",
+                             cmd_info, exit_status);
+                }
+
+                break;
+            }
+
+            if (WIFSIGNALED(wstatus)) {
+                CB_panic("EXEC", "command process  ('%s') was terminated by %s",
+                         cmd_info, strsignal(WTERMSIG(wstatus)));
+            }
+        }
+
+        CB_debug("EXEC",
+                 "Wait for child command process (pid: %d) sucessfully: %s",
+                 pid, cmd_info);
+    }
     return true;
 }
 
