@@ -16,6 +16,8 @@
 ///
 /// Log related
 ///
+// #define ENABLE_DEBUG_LOG
+void CB_debug(const char *prefix, const char *fmt, ...);
 void CB_info(const char *prefix, const char *fmt, ...);
 void CB_warn(const char *prefix, const char *fmt, ...);
 void CB_error(const char *prefix, const char *fmt, ...);
@@ -127,6 +129,7 @@ void CB_build_executable(const char *output_file);
 #define LOG_COLOR_RED "\033[1;31m"
 #define LOG_COLOR_DEFAULT "\033[1;32m"
 #define LOG_COLOR_PURPLE "\033[1;35m"
+#define LOG_COLOR_GRAY_WHITE "\033[1;37m"
 #define LOG_COLOR_RESET "\033[0m"
 
 void CB_log(FILE *fd, const char *color, const char *prefix, const char *fmt,
@@ -135,6 +138,15 @@ void CB_log(FILE *fd, const char *color, const char *prefix, const char *fmt,
     fprintf(fd, "%s[ %s ] %s- ", color, prefix, LOG_COLOR_RESET);
     vfprintf(fd, fmt, args);
     fprintf(fd, "\n");
+}
+
+void CB_debug(const char *prefix, const char *fmt, ...) {
+#ifdef ENABLE_DEBUG_LOG
+    va_list args;
+    va_start(args, fmt);
+    CB_log(stdout, LOG_COLOR_GRAY_WHITE, prefix, fmt, args);
+    va_end(args);
+#endif
 }
 
 void CB_info(const char *prefix, const char *fmt, ...) {
@@ -212,7 +224,7 @@ bool CB_folder_exists(const char *folder) {
                      folder, strerror(errno));
         }
     }
-    CB_info("CB_folder_exists", "folder exists: %s", folder);
+    CB_debug("CB_folder_exists", "folder exists: %s", folder);
     return true;
 }
 
@@ -246,32 +258,32 @@ void CB_delete_folder(const char *path) {
         if (rmdir(path) < 0) {
             // `ENOENT` 2 /* No such file or directory */
             if (errno == ENOENT) {
-                CB_info("CB_delete_folder", "folder doesn't exists: %s", path);
+                CB_debug("CB_delete_folder", "folder doesn't exists: %s", path);
             } else {
                 CB_panic("CB_delete_exists", "Failed to delete folder '%s': %s",
                          path, strerror(errno));
             }
         }
-        CB_info("CB_delete_folder", "folder deleted successfully: %s", path);
+        CB_debug("CB_delete_folder", "folder deleted successfully: %s", path);
     }
     // That's a file
     else {
         if (unlink(path) < 0) {
             if (errno == ENOENT) {
-                CB_info("CB_delete_folder", "file doesn't exists: %s", path);
+                CB_debug("CB_delete_folder", "file doesn't exists: %s", path);
             } else {
                 CB_panic("CB_delete_exists", "Failed to delete file '%s': %s",
                          path, strerror(errno));
             }
         }
-        CB_info("CB_delete_folder", "file deleted successfully: %s", path);
+        CB_debug("CB_delete_folder", "file deleted successfully: %s", path);
     }
 }
 
 void CB_create_folder(const char *folder) {
     if (mkdir(folder, 0755) < 0) {
         if (errno == EEXIST) {
-            CB_info("CB_create_folder", "folder already exists: %s", folder);
+            CB_debug("CB_create_folder", "folder already exists: %s", folder);
             return;
         } else {
             CB_panic("CB_create_exists", "Failed to create folder %s: %s",
@@ -279,7 +291,7 @@ void CB_create_folder(const char *folder) {
         }
     }
 
-    CB_info("CB_create_folder", "folder created successfully: %s", folder);
+    CB_debug("CB_create_folder", "folder created successfully: %s", folder);
 }
 ///
 /// Command related
