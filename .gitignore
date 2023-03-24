@@ -1,6 +1,8 @@
 build
 .cache
 clangd.core
-*/**/*.o
-*/**/cbuild
-*/**/cbuild.dSYM
+**/*.o
+**/cbuild
+**/cbuild.dSYM
+**/build
+**/temp_build

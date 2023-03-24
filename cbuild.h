@@ -16,7 +16,7 @@
 ///
 /// Log related
 ///
-// #define ENABLE_DEBUG_LOG
+#define ENABLE_DEBUG_LOG
 void CB_debug(const char *prefix, const char *fmt, ...);
 void CB_info(const char *prefix, const char *fmt, ...);
 void CB_warn(const char *prefix, const char *fmt, ...);
@@ -63,9 +63,11 @@ void CB_setup_compiler(void);
 void CB_compile_all(const char *source_file, ...);
 
 ///
-/// Link all compiled object files and generate the givne executable
+/// Compile the give source files and build the given executable, file list
+/// have to end with `NULL`!!!
 ///
-void CB_build_executable(const char *output_file);
+void CB_compile_and_build_executable(const char *executable,
+                                     const char *source_file, ...);
 #endif
 
 #ifdef C_BUILD_IMPLEMENTATION
@@ -332,8 +334,7 @@ bool CB_exec(const char *cmd, const char *args[]) {
     if (pid == 0) {
         // execvp(const char *file, char *const argv[]);
         if (execvp(cmd, (char *const *)args) < 0) {
-            CB_panic("EXEC",
-                     "Fail to run child process ('%s') with error: %s",
+            CB_panic("EXEC", "Fail to run child process ('%s') with error: %s",
                      cmd_info, strerror(errno));
         }
     }
@@ -491,10 +492,10 @@ void CB_setup_compiler(void) {
 void get_obj_filename_from_source_file(const char *source_file,
                                        char *out_buffer, size_t buffer_size) {
     size_t filename_len = strlen(source_file);
-    char temp_filename[50] = {0};
+    char temp_filename[100] = {0};
     size_t path_seq_start_index = 0;
 
-    for (size_t i = filename_len - 1; i >= 0; i--) {
+    for (int i = filename_len - 1; i >= 0; i--) {
         if (source_file[i] == '/') {
             path_seq_start_index = i + 1;
             break;
@@ -510,39 +511,199 @@ void get_obj_filename_from_source_file(const char *source_file,
 ///
 /// Compile the given source file and generate `.o` objfile to `BUILD_FOLDER`
 ///
-void compile_c_file(const char *source_file) {
-    char obj_file[256] = {0};
-    get_obj_filename_from_source_file(source_file, (char *)&obj_file,
-                                      sizeof(obj_file));
+void compile_c_file(const char *source_file, const char *object_file) {
     if (RELEASE_BUILD) {
         const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS_RELEASE,
-                                "-o",       obj_file,
+                                "-o",       object_file,
                                 "-c",       source_file,
                                 NULL};
         CB_exec(cc_cmd[0], cc_cmd);
     } else {
-        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS, "-o", obj_file,
+        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS, "-o", object_file,
                                 "-c",       source_file,     NULL};
         CB_exec(cc_cmd[0], cc_cmd);
     }
 }
 
 ///
-///
+/// Compile all source file but NOT generate the executable, file list have to
+/// end with `NULL`!!!
 ///
 void CB_compile_all(const char *source_file, ...) {
     va_list args;
     va_start(args, source_file);
-    CB_info("COMPILE_ALL", "Compiling: %s", source_file);
-    compile_c_file(source_file);
 
+    // Compile the first source file
+    CB_debug("COMPILE_ALL", "Compiling: %s", source_file);
+    char obj_file[256] = {0};
+    get_obj_filename_from_source_file(source_file, (char *)&obj_file,
+                                      sizeof(obj_file));
+    compile_c_file(source_file, obj_file);
+
+    // Compile the rest source files
     char *next_source_file = va_arg(args, char *);
     while (next_source_file != NULL) {
-        CB_info("COMPILE_ALL", "Compiling: %s", next_source_file);
-        compile_c_file(next_source_file);
+        CB_debug("COMPILE_ALL", "Compiling: %s", next_source_file);
+
+        char obj_file[256] = {0};
+        get_obj_filename_from_source_file(next_source_file, (char *)&obj_file,
+                                          sizeof(obj_file));
+        compile_c_file(next_source_file, obj_file);
         next_source_file = va_arg(args, char *);
     }
     va_end(args);
+}
+
+///
+/// Compile the give source files and build the given executable, file list
+/// have to end with `NULL`!!!
+///
+void CB_compile_and_build_executable(const char *executable,
+                                     const char *source_file, ...) {
+    va_list args;
+    va_start(args, source_file);
+
+    //
+    // Copy `va_list` and use it to calculate total size of the `obj_file_list`
+    //
+    va_list copied_args;
+    va_copy(copied_args, args);
+    size_t obj_file_count = 1;
+    while (va_arg(copied_args, char *) != NULL) {
+        obj_file_count++;
+    }
+    va_end(copied_args);
+
+    //
+    // Create dynamic obj file list for the linking process
+    //
+    CB_debug("COMPILE_ALL_AND_BUILD_EXECUTABLE", "obj_file_count: %lu",
+             obj_file_count);
+    char **obj_file_list = malloc(sizeof(char *) * obj_file_count);
+    size_t obj_file_index = 0;
+
+    //
+    // Compile the first source file
+    //
+    CB_debug("BUILD_EXECUTABLE", "Compiling: %s", source_file);
+    char obj_file[256] = {0};
+    get_obj_filename_from_source_file(source_file, (char *)&obj_file,
+                                      sizeof(obj_file));
+    compile_c_file(source_file, obj_file);
+
+    // Add obj filename to the list
+    size_t obj_filename_len = strlen(obj_file);
+    char *temp_obj_filename = calloc(1, obj_filename_len + 1);
+    memcpy(temp_obj_filename, obj_file, obj_filename_len);
+    temp_obj_filename[obj_filename_len] = '\0';
+    obj_file_list[obj_file_index] = temp_obj_filename;
+    obj_file_index++;
+
+    //
+    // Compile the rest source files
+    //
+    char *next_source_file = va_arg(args, char *);
+    while (next_source_file != NULL) {
+        CB_debug("BUILD_EXECUTABLE", "Compiling: %s", next_source_file);
+
+        char obj_file[256] = {0};
+        get_obj_filename_from_source_file(next_source_file, (char *)&obj_file,
+                                          sizeof(obj_file));
+        compile_c_file(next_source_file, obj_file);
+
+        // Add the obj filename to the list
+        size_t obj_filename_len = strlen(obj_file);
+        char *temp_obj_filename = calloc(1, obj_filename_len + 1);
+        memcpy(temp_obj_filename, obj_file, obj_filename_len);
+        temp_obj_filename[obj_filename_len] = '\0';
+        obj_file_list[obj_file_index] = temp_obj_filename;
+        obj_file_index++;
+
+        next_source_file = va_arg(args, char *);
+    }
+    va_end(args);
+
+    //
+    // Link all obj files
+    //
+
+    // Executable with `BUILD_FOLDER` prefix
+    char executable_filename[256] = {0};
+    snprintf(executable_filename, sizeof(executable_filename), "%s/%s",
+             BUILD_FOLDER, executable);
+
+    // Fixed cmd prefix
+    const char *cmd_prefix_arr_debug[] = {
+        C_COMPILER,
+        DEFAULT_C_FLAGS,
+        "-o",
+        executable_filename,
+    };
+    size_t cmd_prefix_arr_debug_len =
+        sizeof(cmd_prefix_arr_debug) / sizeof(cmd_prefix_arr_debug[0]);
+
+    const char *cmd_prefix_arr_release[] = {
+        C_COMPILER,
+        DEFAULT_C_FLAGS_RELEASE,
+        "-o",
+        executable_filename,
+    };
+    size_t cmd_prefix_arr_release_len =
+        sizeof(cmd_prefix_arr_release) / sizeof(cmd_prefix_arr_release[0]);
+
+    // Dynamic cmd array (`+1` is for endding with `NULL`)
+    size_t cmd_arr_len = RELEASE_BUILD
+                             ? obj_file_count + cmd_prefix_arr_release_len + 1
+                             : obj_file_count + cmd_prefix_arr_debug_len + 1;
+    const char *cc_cmd[cmd_arr_len];
+    memset(cc_cmd, 0, sizeof(char *) * cmd_arr_len);
+
+    // Fill the prefix part
+    size_t cmd_arr_index = 0;
+    if (RELEASE_BUILD) {
+        for (size_t prefix_arr_index = 0;
+             prefix_arr_index < cmd_prefix_arr_release_len;
+             prefix_arr_index++) {
+            cc_cmd[cmd_arr_index] = cmd_prefix_arr_release[prefix_arr_index];
+            cmd_arr_index++;
+        }
+    } else {
+        for (size_t prefix_arr_index = 0;
+             prefix_arr_index < cmd_prefix_arr_debug_len; prefix_arr_index++) {
+            cc_cmd[cmd_arr_index] = cmd_prefix_arr_debug[prefix_arr_index];
+            cmd_arr_index++;
+        }
+    }
+
+    // File the dynamic part
+    CB_debug("BUILD_EXECUTABLE", "obj_file_list:");
+    for (size_t list_index = 0; list_index < obj_file_count; list_index++) {
+        CB_debug("BUILD_EXECUTABLE",
+                 "index: %lu, obj filename ptr: %p, value: %s", list_index,
+                 obj_file_list[list_index], obj_file_list[list_index]);
+
+        cc_cmd[cmd_arr_index] = obj_file_list[list_index];
+        cmd_arr_index++;
+    }
+    cc_cmd[cmd_arr_len - 1] = NULL;
+
+    // Debug purpose
+    CB_debug("BUILD_EXECUTABLE", "cc_cmd len: %lu, values:", cmd_arr_len);
+    for (size_t cmd_index = 0; cmd_index < cmd_arr_len; cmd_index++) {
+        CB_debug("BUILD_EXECUTABLE",
+                 "index: %lu, obj filename ptr: %p, value: %s", cmd_index,
+                 cc_cmd[cmd_index], cc_cmd[cmd_index]);
+    }
+
+    CB_exec(cc_cmd[0], cc_cmd);
+
+    //
+    // Free heap memory
+    //
+    for (size_t index = 0; index < obj_file_count; index++) {
+        free(obj_file_list[index]);
+    }
+    free(obj_file_list);
 }
 
 #endif

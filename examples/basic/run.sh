@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# C_COMPILER=$(which clang)
-C_COMPILER=$(which cc)
+C_COMPILER=$(which clang)
+# C_COMPILER=$(which cc)
 EXECUTABLE="my_program"
 BUILD_FOLDER="temp_build"
-NO_CACHE=false
-RELEASE_BUILD=false
+NO_CACHE=true
+RELEASE_BUILD=true
 
 #
 # Compile `cbuild.c` and then use it to compile the project
