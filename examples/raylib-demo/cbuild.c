@@ -11,7 +11,6 @@
 ///
 ///
 int main(int argc, char **argv) {
-    printf("\n-----------------------\n");
     CB_setup_build_folder();
     CB_setup_compiler();
 
