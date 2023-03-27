@@ -1,6 +1,6 @@
 # `cbuild`
 
-### What is it and what it can offer to you
+### 1. What is it and what it can offer to you
 
 Inspired by [tsoding's nobuild](https://github.com/tsoding/nobuild) and
 has been improved.
@@ -36,15 +36,15 @@ Here is what `cbuild` can offer to you:
 
 - Single `cbuild.h` to cover all you need, nothing else.
 
-### Limitation
+### 2. Limitation
 
 Only work for `Linux` or `BSD` family at this moment, tested on `Linux/MacOS/FreeBSD`.
 
 </br>
 
-### Usage by examples
+### 3. Usage by examples
 
-#### Basic
+#### 3.1 Basic
 
 - Create `cbuild.c` and include `cbuild.h` and write your own build process
 
@@ -81,6 +81,8 @@ Here are the default env values if you don't provide them:
 | Env var | Default value |
 | ------- | ------------- |
 | C_COMPILER | `cc` |
+| EXTRA_COMPILE_FLAGS | Empty |
+| EXTRA_LINK_FLAGS | Empty |
 | RELEASE_BUILD | `false` and `-g` applied<br><br>When `true`, the following settings applied:<br>`-O3 -DNDEBUG`|
 | EXECUTABLE | `main` |
 | BUILD_FOLDER | `build`, folder will be created if not exists |
@@ -146,6 +148,7 @@ Also, here is the default `C_FALGS`, feel free to change to what you needed:
         BUILD_FOLDER=${BUILD_FOLDER} \
         NO_CACHE=${NO_CACHE} \
         RELEASE_BUILD=${RELEASE_BUILD} \
+        EXECUTABLE=${EXECUTABLE} \
         ./cbuild \
         && \
         ${BUILD_FOLDER}/${EXECUTABLE}
