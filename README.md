@@ -18,27 +18,21 @@ Here is what `cbuild` can offer to you:
     If you love C, then just write your own building process by using your
     favorite programming language, it's kind of fun and cool:)
 
+    If you want further simplicity, just download [`zig cc` (single executable)](https://ziglang.org/download/)
+    and use it as your c compiler with zero installation and configuration for your c compiling environment.
+
 - Improved color logging.
 
 - Support user provided env var to override the default settings.
 
-- Cover different function naming habits.
-
-    So the following function calls are the same, just pick the one you
-    preferred:
-
-    - `CBuild_exec_command`
-    - `CBuildExecCommand`
-    - `CB_exec_command`
-    - `CBExecCommand`
-
-    </br>
-
 - Single `cbuild.h` to cover all you need, nothing else.
+
+</br>
+
 
 ### 2. Limitation
 
-Only work for `Linux` or `BSD` family at this moment, tested on `Linux/MacOS/FreeBSD`.
+Only work for `Linux` or `BSD` family at this moment.
 
 </br>
 
