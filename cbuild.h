@@ -450,8 +450,6 @@ static bool already_setup_c_compiler = false;
 static char C_COMPILER[255] = {0};
 static char RELEASE_BUILD = false;
 static char EXECUTABLE[256] = {0};
-static char EXTRA_COMPILE_FLAGS[256] = {0};
-static char EXTRA_LINK_FLAGS[256] = {0};
 
 void CB_setup_compiler(void) {
     // Make sure only call once.
@@ -475,13 +473,21 @@ void CB_setup_compiler(void) {
     }
     snprintf(c_flags, sizeof(c_flags), "%s", c_flags);
 
-    const char *extra_compile_flags = getenv("EXTRA_COMPILE_FLAGS");
-    snprintf(EXTRA_COMPILE_FLAGS, sizeof(EXTRA_COMPILE_FLAGS), "%s",
-             extra_compile_flags != NULL ? extra_compile_flags : "");
+    static char extra_compile_flags[256] = {0};
+#ifdef EXTRA_COMPILE_FLAGS
+    join_args(extra_compile_flags, sizeof(extra_compile_flags),
+              EXTRA_COMPILE_FLAGS, NULL);
+#else
+    snprintf(extra_compile_flags, sizeof(extra_compile_flags), "%s", "");
+#endif
 
-    const char *extra_link_flags = getenv("EXTRA_LINK_FLAGS");
-    snprintf(EXTRA_LINK_FLAGS, sizeof(EXTRA_LINK_FLAGS), "%s",
-             extra_link_flags != NULL ? extra_link_flags : "");
+    static char extra_link_flags[256] = {0};
+#ifdef EXTRA_LINK_FLAGS
+    join_args(extra_link_flags, sizeof(extra_link_flags), EXTRA_LINK_FLAGS,
+              NULL);
+#else
+    snprintf(extra_link_flags, sizeof(extra_link_flags), "%s", "");
+#endif
 
     const char *executable = getenv("EXECUTABLE");
     snprintf(EXECUTABLE, sizeof(EXECUTABLE), "%s",
@@ -491,8 +497,8 @@ void CB_setup_compiler(void) {
 
     CB_info("COMPILER", "C_COMPILER: %s", C_COMPILER);
     CB_info("COMPILER", "C_FLAGS: %s", c_flags);
-    CB_info("COMPILER", "EXTRA_COMPILE_FLAGS: %s", EXTRA_COMPILE_FLAGS);
-    CB_info("COMPILER", "EXTRA_LINK_FLAGS: %s", EXTRA_LINK_FLAGS);
+    CB_info("COMPILER", "EXTRA_COMPILE_FLAGS: %s", extra_compile_flags);
+    CB_info("COMPILER", "EXTRA_LINK_FLAGS: %s", extra_link_flags);
     CB_info("COMPILER", "RELEASE_BUILD: %s", RELEASE_BUILD ? "Yes" : "No");
     CB_info("COMPILER", "EXECUTABLE: %s", EXECUTABLE);
 
@@ -530,16 +536,28 @@ void get_obj_filename_from_source_file(const char *source_file,
 ///
 void compile_c_file(const char *source_file, const char *object_file) {
     if (RELEASE_BUILD) {
+#ifdef EXTRA_COMPILE_FLAGS
         const char *cc_cmd[] = {C_COMPILER,          DEFAULT_C_FLAGS_RELEASE,
                                 EXTRA_COMPILE_FLAGS, "-o",
                                 object_file,         "-c",
                                 source_file,         NULL};
+#else
+        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS_RELEASE,
+                                "-o",       object_file,
+                                "-c",       source_file,
+                                NULL};
+#endif
         CB_exec(cc_cmd[0], cc_cmd);
     } else {
+#ifdef EXTRA_COMPILE_FLAGS
         const char *cc_cmd[] = {C_COMPILER,          DEFAULT_C_FLAGS,
                                 EXTRA_COMPILE_FLAGS, "-o",
                                 object_file,         "-c",
                                 source_file,         NULL};
+#else
+        const char *cc_cmd[] = {C_COMPILER, DEFAULT_C_FLAGS, "-o", object_file,
+                                "-c",       source_file,     NULL};
+#endif
         CB_exec(cc_cmd[0], cc_cmd);
     }
 }
@@ -651,17 +669,35 @@ void CB_compile_and_build_executable(const char *source_file, ...) {
              BUILD_FOLDER, EXECUTABLE);
 
     // Fixed cmd prefix
+#ifdef EXTRA_LINK_FLAGS
     const char *cmd_prefix_arr_debug[] = {
         C_COMPILER, DEFAULT_C_FLAGS,     EXTRA_LINK_FLAGS,
         "-o",       executable_filename,
     };
+#else
+    const char *cmd_prefix_arr_debug[] = {
+        C_COMPILER,
+        DEFAULT_C_FLAGS,
+        "-o",
+        executable_filename,
+    };
+#endif
     size_t cmd_prefix_arr_debug_len =
         sizeof(cmd_prefix_arr_debug) / sizeof(cmd_prefix_arr_debug[0]);
 
+#ifdef EXTRA_LINK_FLAGS
     const char *cmd_prefix_arr_release[] = {
         C_COMPILER, DEFAULT_C_FLAGS_RELEASE, EXTRA_LINK_FLAGS,
         "-o",       executable_filename,
     };
+#else
+    const char *cmd_prefix_arr_release[] = {
+        C_COMPILER,
+        DEFAULT_C_FLAGS_RELEASE,
+        "-o",
+        executable_filename,
+    };
+#endif
     size_t cmd_prefix_arr_release_len =
         sizeof(cmd_prefix_arr_release) / sizeof(cmd_prefix_arr_release[0]);
 
