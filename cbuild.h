@@ -66,8 +66,7 @@ void CB_compile_all(const char *source_file, ...);
 /// Compile the give source files and build the given executable, file list
 /// have to end with `NULL`!!!
 ///
-void CB_compile_and_build_executable(const char *executable,
-                                     const char *source_file, ...);
+void CB_compile_and_build_executable(const char *source_file, ...);
 #endif
 
 #ifdef C_BUILD_IMPLEMENTATION
@@ -450,6 +449,7 @@ void CB_setup_build_folder(void) {
 static bool already_setup_c_compiler = false;
 static char C_COMPILER[255] = {0};
 static char RELEASE_BUILD = false;
+static char EXECUTABLE[256] = {0};
 
 void CB_setup_compiler(void) {
     // Make sure only call once.
@@ -473,11 +473,16 @@ void CB_setup_compiler(void) {
     }
     snprintf(c_flags, sizeof(c_flags), "%s", c_flags);
 
+    const char *executable = getenv("EXECUTABLE");
+    snprintf(EXECUTABLE, sizeof(EXECUTABLE), "%s",
+             executable != NULL ? executable : "main");
+
     // print_memory_block("byte[]", sizeof(c_flags), c_flags);
 
     CB_info("COMPILER", "C_COMPILER: %s", C_COMPILER);
     CB_info("COMPILER", "C_FLAGS: %s", c_flags);
     CB_info("COMPILER", "RELEASE_BUILD: %s", RELEASE_BUILD ? "Yes" : "No");
+    CB_info("COMPILER", "EXECUTABLE: %s", EXECUTABLE);
 
     already_setup_c_compiler = true;
 }
@@ -558,8 +563,7 @@ void CB_compile_all(const char *source_file, ...) {
 /// Compile the give source files and build the given executable, file list
 /// have to end with `NULL`!!!
 ///
-void CB_compile_and_build_executable(const char *executable,
-                                     const char *source_file, ...) {
+void CB_compile_and_build_executable(const char *source_file, ...) {
     va_list args;
     va_start(args, source_file);
 
@@ -630,7 +634,7 @@ void CB_compile_and_build_executable(const char *executable,
     // Executable with `BUILD_FOLDER` prefix
     char executable_filename[256] = {0};
     snprintf(executable_filename, sizeof(executable_filename), "%s/%s",
-             BUILD_FOLDER, executable);
+             BUILD_FOLDER, EXECUTABLE);
 
     // Fixed cmd prefix
     const char *cmd_prefix_arr_debug[] = {
@@ -705,7 +709,8 @@ void CB_compile_and_build_executable(const char *executable,
     }
     free(obj_file_list);
 
-    CB_info("BUILD_EXECUTABLE", "Build successfully, generated executable: %s", executable_filename);
+    CB_info("BUILD_EXECUTABLE", "Build successfully, generated executable: %s",
+            executable_filename);
 }
 
 #endif
