@@ -73,7 +73,7 @@ Source code in `examples/basic`
     cc -o cbuild cbuild.c && ./cbuild && build/main_test
     ```
 
-    ![basic_build](./readme_iamges/basic_build.png)
+    ![basic_build](./readme_images/basic_build.png)
 
     </br>
 
@@ -162,6 +162,9 @@ Source code in `examples/basic`
 
     </br>
 
+    ![basic_build_2](./readme_images/basic_build_2.png)
+
+    </br>
 
 #### 3.3 Use `EXTRA_COMPILE_FLAGS` and  `EXTRA_LINK_FLAGS` macros for complicated projects
 
@@ -226,7 +229,7 @@ Source code in `examples/raylib-demo`
 
     </br>
 
-    ![raylib-demo](./readme_iamges/raylib-demo.png)
+    ![raylib-demo](./readme_images/raylib-demo.png)
 
     </br>
 
